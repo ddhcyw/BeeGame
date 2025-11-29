@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>嗡嗡的授粉大冒險：挑戰版</title>
+    <title>嗡嗡的授粉大冒險：限時挑戰版</title>
     <link href="https://fonts.googleapis.com/css2?family=Varela+Round&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
@@ -223,10 +223,17 @@
         <div class="clay-card px-4 py-2 flex items-center gap-2">
             <span class="text-xl font-bold text-gray-600">Level <span id="level-display">1</span></span>
         </div>
-        <div class="clay-card px-4 py-2 flex items-center gap-2">
-            <span class="text-2xl">🌸</span>
-            <span id="score" class="text-2xl font-bold text-pink-600">0</span>
-            <span class="text-gray-400 text-sm font-bold">/ <span id="target-score">5</span></span>
+        <div class="flex gap-2">
+            <div class="clay-card px-4 py-2 flex items-center gap-2">
+                <span class="text-2xl">🌸</span>
+                <span id="score" class="text-2xl font-bold text-pink-600">0</span>
+                <span class="text-gray-400 text-sm font-bold">/ <span id="target-score">5</span></span>
+            </div>
+            <!-- 新增：時間顯示 -->
+            <div class="clay-card px-4 py-2 flex items-center gap-2">
+                <span class="text-2xl">⏳</span>
+                <span id="time-display" class="text-2xl font-bold text-blue-600">30</span>
+            </div>
         </div>
     </div>
 
@@ -253,37 +260,40 @@
     </div>
 
     <script>
-        // --- 難度設定 (已提高難度) ---
+        // --- 難度設定 (含時間限制) ---
         const LEVEL_CONFIG = {
             1: { 
                 target: 5,  
-                moveSpeed: 0.5, // 稍微會動一點點
+                moveSpeed: 0.5, 
                 maxFlowers: 5,  
                 spawnRate: 1500, 
                 obstacles: false,
                 obsSpawnRate: 0,
                 maxObs: 0,
-                text: "第一關：快樂花園\n花朵開始跳舞了，試著採集 5 朵花！" 
+                timeLimit: 30, // 30秒
+                text: "第一關：快樂花園\n花朵開始跳舞了，試著採集 5 朵花！\n時間限制：30秒" 
             },
             2: { 
                 target: 10, 
-                moveSpeed: 2.5, // 速度大幅提升 (原0.8)
+                moveSpeed: 2.5, 
                 maxFlowers: 7,  
                 spawnRate: 1000, 
                 obstacles: false,
                 obsSpawnRate: 0,
                 maxObs: 0, 
-                text: "第二關：強風來襲\n風變大了！花朵飛得好快！\n目標：10 朵花" 
+                timeLimit: 40, // 40秒
+                text: "第二關：強風來襲\n風變大了！花朵飛得好快！\n目標：10 朵花 (限時40秒)" 
             },
             3: { 
                 target: 15, 
-                moveSpeed: 4.0, // 速度極快 (原1.5)
+                moveSpeed: 4.0, 
                 maxFlowers: 8,  
                 spawnRate: 800, 
                 obstacles: true,
-                obsSpawnRate: 1200, // 障礙物生成頻率加快
-                maxObs: 5,         // 最多同時出現 5 個障礙物
-                text: "第三關：黏黏草大爆發\n花朵飛快，小心滿天飛的黏黏草！\n目標：15 朵花" 
+                obsSpawnRate: 1200, 
+                maxObs: 5,         
+                timeLimit: 50, // 50秒
+                text: "第三關：黏黏草大爆發\n花朵飛快，小心滿天飛的黏黏草！\n目標：15 朵花 (限時50秒)" 
             }
         };
 
@@ -291,6 +301,7 @@
         const gameArea = document.getElementById('game-area');
         const scoreEl = document.getElementById('score');
         const targetEl = document.getElementById('target-score');
+        const timeEl = document.getElementById('time-display'); // 時間元素
         const levelDisplay = document.getElementById('level-display');
         const modalScreen = document.getElementById('modal-screen');
         const modalContent = document.getElementById('modal-content');
@@ -308,6 +319,10 @@
         
         let lastSpawnTime = 0;
         let lastObstacleSpawnTime = 0;
+        
+        // 時間相關變數
+        let timeLeft = 0;
+        let lastFrameTime = 0;
 
         showModal('START');
 
@@ -334,13 +349,41 @@
         // 遊戲迴圈
         function gameLoop(timestamp) {
             if (gameState === 'PLAYING') {
+                // 計算 Delta Time
+                if (!lastFrameTime) lastFrameTime = timestamp;
+                const dt = timestamp - lastFrameTime;
+                lastFrameTime = timestamp;
+
                 updateBee();
                 updateGameLogic(timestamp);
+                updateTimer(dt); // 更新時間
                 checkCollisions();
+            } else {
+                lastFrameTime = 0; // 重置
             }
             requestAnimationFrame(gameLoop);
         }
         requestAnimationFrame(gameLoop);
+
+        // 時間更新邏輯
+        function updateTimer(dt) {
+            timeLeft -= dt / 1000; // 毫秒轉秒
+            if (timeLeft <= 0) {
+                timeLeft = 0;
+                gameOver();
+            }
+            // 更新 UI，取整數
+            timeEl.textContent = Math.ceil(timeLeft);
+            
+            // 時間少於 10 秒變紅色提醒
+            if (timeLeft <= 10) {
+                timeEl.classList.remove('text-blue-600');
+                timeEl.classList.add('text-red-600');
+            } else {
+                timeEl.classList.add('text-blue-600');
+                timeEl.classList.remove('text-red-600');
+            }
+        }
 
         // 蜜蜂移動
         function updateBee() {
@@ -371,12 +414,11 @@
                 flower.element.style.top = `${flower.y - 30}px`;
             });
 
-            // 2. 移動障礙物 (新增：障礙物也會飄動)
+            // 2. 移動障礙物
             if (config.obstacles) {
                 obstacles.forEach(obs => {
                     obs.x += obs.vx;
                     obs.y += obs.vy;
-                    // 簡單邊界反彈
                     if (obs.x < 25 || obs.x > window.innerWidth - 25) obs.vx *= -1;
                     if (obs.y < 25 || obs.y > window.innerHeight - 25) obs.vy *= -1;
                     
@@ -396,7 +438,7 @@
             // 4. 生成障礙物
             if (config.obstacles && timestamp - lastObstacleSpawnTime > config.obsSpawnRate) {
                 if (obstacles.length < config.maxObs) {
-                    spawnObstacle(config.moveSpeed * 0.5); // 障礙物飄得比花慢一點
+                    spawnObstacle(config.moveSpeed * 0.5); 
                 }
                 lastObstacleSpawnTime = timestamp;
             }
@@ -410,7 +452,6 @@
             const x = margin + Math.random() * (window.innerWidth - margin * 2);
             const y = margin + Math.random() * (window.innerHeight - margin * 2);
             
-            // 速度方向隨機
             const vx = (Math.random() - 0.5) * speed * 3;
             const vy = (Math.random() - 0.5) * speed * 3;
 
@@ -453,7 +494,6 @@
             const obstacleObj = { element: obs, x, y, vx, vy, radius: 25 };
             obstacles.push(obstacleObj);
             
-            // 障礙物存活時間縮短，讓場面更混亂
             setTimeout(() => {
                 if (obstacles.includes(obstacleObj)) {
                     obs.style.transition = 'opacity 0.5s';
@@ -511,14 +551,11 @@
 
         function hitObstacle(index) {
             const o = obstacles[index];
-            
-            // 彈開與震動
             const dx = beeX - o.x;
             const dy = beeY - o.y;
             beeX += dx * 0.8;
             beeY += dy * 0.8;
             
-            // 畫面震動效果
             document.body.style.transform = "translate(5px, 5px)";
             setTimeout(()=> document.body.style.transform = "translate(0,0)", 50);
 
@@ -564,6 +601,11 @@
             levelDisplay.textContent = currentLevel;
         }
 
+        function gameOver() {
+            gameState = 'GAME_OVER';
+            showModal('GAME_OVER');
+        }
+
         function showModal(type) {
             // 顯示滑鼠，隱藏蜜蜂
             document.body.classList.remove('game-active');
@@ -598,6 +640,13 @@
                     <p class="text-gray-700 mb-6 text-lg font-bold">你拯救了花園！<br>現在到處都是美味的水果！</p>
                     <button onclick="location.reload()" class="clay-btn px-8 py-3 text-xl font-bold shadow-lg hover:scale-105 transition-transform">重新再玩 ↺</button>
                 `;
+            } else if (type === 'GAME_OVER') {
+                 content = `
+                    <div class="text-6xl mb-4">😫</div>
+                    <h2 class="text-3xl font-bold text-red-600 mb-2">時間到了！</h2>
+                    <p class="text-gray-600 mb-6 font-bold">哎呀！差一點點就收集完了！<br>蜜蜂累了，休息一下再試試看吧！</p>
+                    <button onclick="startGame(${currentLevel})" class="clay-btn px-8 py-3 text-xl font-bold shadow-lg hover:scale-105 transition-transform">再試一次 ↺</button>
+                `;
             }
             modalContent.innerHTML = content;
         }
@@ -605,18 +654,23 @@
         function startGame(level) {
             currentLevel = level;
             score = 0;
+            // 設定時間
+            timeLeft = LEVEL_CONFIG[level].timeLimit;
+            lastFrameTime = 0; // 重置計時
+
             flowers = [];
             obstacles = [];
             gameArea.innerHTML = '';
             
             updateUI();
+            timeEl.textContent = timeLeft; // 立即更新顯示
             
             // 隱藏滑鼠，顯示蜜蜂
             modalScreen.classList.add('hidden');
             document.body.classList.add('game-active');
             bee.style.display = 'block';
             
-            // 重置蜜蜂位置到畫面中間，避免瞬間移動
+            // 重置蜜蜂位置
             beeX = window.innerWidth / 2;
             beeY = window.innerHeight / 2;
             
