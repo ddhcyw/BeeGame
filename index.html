@@ -1,0 +1,604 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>嗡嗡的授粉大冒險：三關挑戰版</title>
+    <link href="https://fonts.googleapis.com/css2?family=Varela+Round&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* 全局設定 */
+        body {
+            font-family: 'Varela Round', sans-serif;
+            background-color: #E0F7FA;
+            overflow: hidden;
+            touch-action: none;
+            user-select: none;
+            cursor: none; /* 隱藏滑鼠 */
+        }
+
+        /* -----------------------
+           黏土質感核心 CSS
+        ----------------------- */
+        .clay-object {
+            border-radius: 20px;
+            box-shadow: 
+                inset -5px -5px 15px rgba(0,0,0,0.1),
+                inset 5px 5px 15px rgba(255,255,255,0.4),
+                5px 5px 10px rgba(0,0,0,0.15);
+        }
+
+        .clay-card {
+            background-color: #ffffff;
+            border-radius: 30px;
+            box-shadow: 
+                inset -5px -5px 15px rgba(0,0,0,0.05),
+                inset 5px 5px 15px rgba(255,255,255,0.8),
+                10px 10px 20px rgba(0,0,0,0.1);
+        }
+
+        .clay-btn {
+            background-color: #FFD54F;
+            color: #5D4037;
+            border: none;
+            border-radius: 50px;
+            cursor: pointer;
+            transition: transform 0.1s;
+            box-shadow: 
+                inset -3px -3px 5px rgba(0,0,0,0.1),
+                inset 3px 3px 5px rgba(255,255,255,0.4),
+                3px 3px 5px rgba(0,0,0,0.2);
+        }
+        .clay-btn:active { transform: scale(0.95); }
+
+        /* -----------------------
+           遊戲角色：蜜蜂
+        ----------------------- */
+        #player-bee {
+            position: absolute;
+            top: 0; left: 0;
+            width: 60px; height: 60px;
+            pointer-events: none;
+            z-index: 100;
+            will-change: transform;
+        }
+
+        .bee-body {
+            width: 50px; height: 70px;
+            background: #FFD700;
+            border-radius: 50%;
+            position: absolute;
+            left: 5px; top: 0;
+            background-image: linear-gradient(90deg, transparent 40%, #3E2723 40%, #3E2723 60%, transparent 60%);
+            background-size: 50px 70px;
+            box-shadow: inset -5px -5px 10px rgba(0,0,0,0.2), inset 5px 5px 10px rgba(255,255,255,0.5);
+            animation: bounce 2s infinite ease-in-out;
+        }
+
+        .bee-face {
+            width: 40px; height: 35px;
+            background: #FFD700;
+            border-radius: 50%;
+            position: absolute;
+            top: -15px; left: 10px;
+        }
+
+        .bee-eye {
+            width: 8px; height: 8px;
+            background: #3E2723;
+            border-radius: 50%;
+            position: absolute; top: 10px;
+            animation: blink 4s infinite;
+        }
+        .bee-eye.left { left: 8px; }
+        .bee-eye.right { right: 8px; }
+        .bee-smile {
+            width: 16px; height: 8px;
+            border-bottom: 3px solid #3E2723;
+            border-radius: 50%;
+            position: absolute; bottom: 8px; left: 12px;
+        }
+
+        .bee-wing {
+            width: 40px; height: 30px;
+            background: rgba(255, 255, 255, 0.9);
+            border-radius: 50% 50% 50% 50% / 60% 60% 40% 40%;
+            position: absolute; top: 10px; z-index: -1;
+        }
+        .bee-wing.left { left: -25px; transform-origin: right center; animation: flutter 0.1s infinite; }
+        .bee-wing.right { right: -25px; transform-origin: left center; animation: flutter 0.1s infinite reverse; }
+        .stinger {
+            width: 0; height: 0; 
+            border-left: 5px solid transparent; border-right: 5px solid transparent; border-top: 15px solid #3E2723;
+            position: absolute; bottom: -10px; left: 25px; transform: translateX(-50%); z-index: -2;
+        }
+
+        /* -----------------------
+           遊戲物件：花朵 & 障礙物
+        ----------------------- */
+        .target-flower {
+            position: absolute;
+            width: 60px; height: 60px;
+            transition: transform 0.1s linear; /* 讓移動平滑 */
+            animation: popIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+        
+        .flower-petals {
+            width: 100%; height: 100%;
+            background-color: #F48FB1;
+            border-radius: 50%;
+            box-shadow: inset -3px -3px 8px rgba(0,0,0,0.1), inset 3px 3px 8px rgba(255,255,255,0.4);
+        }
+
+        .flower-center {
+            position: absolute;
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            width: 30px; height: 30px;
+            background-color: #FFEE58;
+            border-radius: 50%;
+            box-shadow: inset -2px -2px 5px rgba(0,0,0,0.1), inset 2px 2px 5px rgba(255,255,255,0.5);
+        }
+
+        /* 障礙物：黏黏草 (紫色刺球) */
+        .obstacle-weed {
+            position: absolute;
+            width: 50px; height: 50px;
+            animation: popIn 0.5s;
+        }
+        .weed-body {
+            width: 100%; height: 100%;
+            background-color: #9C27B0; /* Purple */
+            border-radius: 40%; /* 稍微不圓 */
+            box-shadow: inset -3px -3px 8px rgba(0,0,0,0.2), inset 3px 3px 8px rgba(255,255,255,0.3);
+            position: relative;
+        }
+        .weed-spike {
+            position: absolute;
+            background: #9C27B0;
+            width: 10px; height: 10px;
+            border-radius: 2px;
+            transform: rotate(45deg);
+        }
+
+        /* 粒子特效 */
+        .particle {
+            position: absolute;
+            width: 10px; height: 10px;
+            background: #FFEE58;
+            border-radius: 50%;
+            pointer-events: none;
+            animation: fadeOut 1s forwards;
+        }
+
+        /* 扣分特效 */
+        .minus-score {
+            position: absolute;
+            color: #9C27B0;
+            font-weight: bold;
+            font-size: 24px;
+            animation: floatUp 1s forwards;
+            pointer-events: none;
+        }
+
+        /* -----------------------
+           動畫
+        ----------------------- */
+        @keyframes flutter { 0% { transform: rotate(0deg) scaleY(1); } 50% { transform: rotate(15deg) scaleY(0.8); } 100% { transform: rotate(0deg) scaleY(1); } }
+        @keyframes bounce { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-5px); } }
+        @keyframes blink { 0%, 96%, 100% { transform: scaleY(1); } 98% { transform: scaleY(0.1); } }
+        @keyframes popIn { from { transform: scale(0); } to { transform: scale(1); } }
+        @keyframes fadeOut { to { opacity: 0; transform: translateY(-30px); } }
+        @keyframes floatUp { to { opacity: 0; transform: translateY(-50px); } }
+        @keyframes floatCloud { 0% { transform: translateX(0); } 50% { transform: translateX(20px); } 100% { transform: translateX(0); } }
+
+        .cloud {
+            background: white; border-radius: 50px; position: absolute; opacity: 0.6;
+            box-shadow: inset 5px 5px 10px rgba(255,255,255,1);
+            animation: floatCloud 8s infinite ease-in-out;
+            z-index: 0;
+        }
+
+        #game-area {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            z-index: 10;
+        }
+
+        button { cursor: none; }
+    </style>
+</head>
+<body>
+
+    <!-- 背景裝飾 -->
+    <div class="cloud w-40 h-20 top-10 left-10" style="animation-duration: 12s;"></div>
+    <div class="cloud w-32 h-16 bottom-20 right-20" style="animation-duration: 15s;"></div>
+    <div class="cloud w-56 h-24 top-1/2 left-1/3" style="animation-duration: 20s; opacity: 0.4;"></div>
+
+    <!-- 遊戲 UI -->
+    <div class="absolute top-4 left-4 z-50 flex flex-col gap-2">
+        <div class="clay-card px-4 py-2 flex items-center gap-2">
+            <span class="text-xl font-bold text-gray-600">Level <span id="level-display">1</span></span>
+        </div>
+        <div class="clay-card px-4 py-2 flex items-center gap-2">
+            <span class="text-2xl">🌸</span>
+            <span id="score" class="text-2xl font-bold text-pink-600">0</span>
+            <span class="text-gray-400 text-sm font-bold">/ <span id="target-score">5</span></span>
+        </div>
+    </div>
+
+    <!-- 遊戲區域 -->
+    <div id="game-area"></div>
+
+    <!-- 玩家角色 -->
+    <div id="player-bee">
+        <div class="bee-wing left"></div>
+        <div class="bee-wing right"></div>
+        <div class="bee-body"><div class="stinger"></div></div>
+        <div class="bee-face">
+            <div class="bee-eye left"></div>
+            <div class="bee-eye right"></div>
+            <div class="bee-smile"></div>
+        </div>
+    </div>
+
+    <!-- 通用彈窗 (開始、過關、勝利) -->
+    <div id="modal-screen" class="fixed inset-0 z-50 flex items-center justify-center bg-black/20 backdrop-blur-sm">
+        <div id="modal-content" class="clay-card p-8 text-center max-w-md mx-4 animate-bounce-slow">
+            <!-- 這裡的內容會由 JS 動態生成 -->
+        </div>
+    </div>
+
+    <script>
+        // --- 遊戲設定 ---
+        const LEVEL_CONFIG = {
+            1: { target: 5,  moveSpeed: 0,   maxFlowers: 4,  spawnRate: 1500, obstacles: false, text: "第一關：快樂花園\n採集 5 朵花，熟悉一下飛行吧！" },
+            2: { target: 10, moveSpeed: 0.8, maxFlowers: 6,  spawnRate: 1200, obstacles: false, text: "第二關：微風吹拂\n起風了！花朵開始飄動囉！\n目標：10 朵花" },
+            3: { target: 15, moveSpeed: 1.5, maxFlowers: 7,  spawnRate: 1000, obstacles: true,  text: "第三關：黏黏草危機\n小心紫色的黏黏草！碰到會掉花粉喔！\n目標：15 朵花" }
+        };
+
+        // --- 變數 ---
+        const bee = document.getElementById('player-bee');
+        const gameArea = document.getElementById('game-area');
+        const scoreEl = document.getElementById('score');
+        const targetEl = document.getElementById('target-score');
+        const levelDisplay = document.getElementById('level-display');
+        const modalScreen = document.getElementById('modal-screen');
+        const modalContent = document.getElementById('modal-content');
+        
+        let gameState = 'START'; // START, PLAYING, LEVEL_DONE, WIN
+        let currentLevel = 1;
+        let score = 0;
+        let flowers = [];
+        let obstacles = []; // 黏黏草
+        
+        // 蜜蜂位置與移動
+        let mouseX = window.innerWidth / 2;
+        let mouseY = window.innerHeight / 2;
+        let beeX = mouseX;
+        let beeY = mouseY;
+        
+        let lastSpawnTime = 0;
+        let lastObstacleSpawnTime = 0;
+
+        // --- 初始化 ---
+        updateBee(); // 修正：將原本的 updateBeeVisuals() 改為 updateBee()
+        showModal('START');
+
+        // --- 輸入監聽 ---
+        window.addEventListener('mousemove', (e) => {
+            mouseX = e.clientX;
+            mouseY = e.clientY;
+        });
+        window.addEventListener('touchmove', (e) => {
+            e.preventDefault(); 
+            const touch = e.touches[0];
+            mouseX = touch.clientX;
+            mouseY = touch.clientY - 50; 
+        }, { passive: false });
+        window.addEventListener('touchstart', (e) => {
+            const touch = e.touches[0];
+            mouseX = touch.clientX;
+            mouseY = touch.clientY - 50;
+        }, { passive: false });
+
+        // --- 遊戲主迴圈 ---
+        function gameLoop(timestamp) {
+            if (gameState === 'PLAYING') {
+                updateBee();
+                updateGameLogic(timestamp);
+                checkCollisions();
+            }
+            requestAnimationFrame(gameLoop);
+        }
+        requestAnimationFrame(gameLoop);
+
+        // --- 核心邏輯 ---
+
+        function updateBee() {
+            // 平滑跟隨
+            const speed = 0.15;
+            beeX += (mouseX - beeX) * speed;
+            beeY += (mouseY - beeY) * speed;
+
+            // 轉向角度
+            const deltaX = mouseX - beeX;
+            const rotation = Math.max(Math.min(deltaX * 0.3, 25), -25);
+            
+            bee.style.transform = `translate(${beeX - 30}px, ${beeY - 30}px) rotate(${rotation}deg)`;
+        }
+
+        function updateGameLogic(timestamp) {
+            const config = LEVEL_CONFIG[currentLevel];
+
+            // 1. 花朵移動 (Lv2, Lv3)
+            if (config.moveSpeed > 0) {
+                flowers.forEach(flower => {
+                    flower.x += flower.vx;
+                    flower.y += flower.vy;
+                    
+                    // 邊界反彈
+                    if (flower.x < 30 || flower.x > window.innerWidth - 30) flower.vx *= -1;
+                    if (flower.y < 30 || flower.y > window.innerHeight - 30) flower.vy *= -1;
+
+                    flower.element.style.left = `${flower.x - 30}px`;
+                    flower.element.style.top = `${flower.y - 30}px`;
+                });
+            }
+
+            // 2. 生成花朵
+            if (timestamp - lastSpawnTime > config.spawnRate) {
+                if (flowers.length < config.maxFlowers) {
+                    spawnFlower(config.moveSpeed);
+                }
+                lastSpawnTime = timestamp;
+            }
+
+            // 3. 生成障礙物 (Lv3)
+            if (config.obstacles && timestamp - lastObstacleSpawnTime > 2000) {
+                if (obstacles.length < 3) { // 畫面上最多3個障礙物
+                    spawnObstacle();
+                }
+                lastObstacleSpawnTime = timestamp;
+            }
+        }
+
+        function spawnFlower(moveSpeed) {
+            const flower = document.createElement('div');
+            flower.className = 'target-flower';
+            
+            const margin = 50;
+            const x = margin + Math.random() * (window.innerWidth - margin * 2);
+            const y = margin + Math.random() * (window.innerHeight - margin * 2);
+            
+            // 隨機移動速度
+            const vx = (Math.random() - 0.5) * moveSpeed * 3;
+            const vy = (Math.random() - 0.5) * moveSpeed * 3;
+
+            flower.style.left = `${x - 30}px`;
+            flower.style.top = `${y - 30}px`;
+            
+            const colors = ['#F48FB1', '#CE93D8', '#90CAF9', '#FFCC80'];
+            const color = colors[Math.floor(Math.random() * colors.length)];
+            
+            flower.innerHTML = `<div class="flower-petals" style="background-color: ${color}"></div><div class="flower-center"></div>`;
+            gameArea.appendChild(flower);
+            
+            flowers.push({ element: flower, x, y, vx, vy, radius: 30 });
+        }
+
+        function spawnObstacle() {
+            const obs = document.createElement('div');
+            obs.className = 'obstacle-weed';
+            
+            const margin = 50;
+            const x = margin + Math.random() * (window.innerWidth - margin * 2);
+            const y = margin + Math.random() * (window.innerHeight - margin * 2);
+            
+            obs.style.left = `${x - 25}px`;
+            obs.style.top = `${y - 25}px`;
+            
+            // 黏黏草外觀
+            obs.innerHTML = `
+                <div class="weed-body"></div>
+                <div class="weed-spike" style="top:-5px; left:20px;"></div>
+                <div class="weed-spike" style="bottom:-5px; left:20px;"></div>
+                <div class="weed-spike" style="left:-5px; top:20px;"></div>
+                <div class="weed-spike" style="right:-5px; top:20px;"></div>
+            `;
+            
+            gameArea.appendChild(obs);
+            
+            // 障礙物 5秒後自動消失
+            const obstacleObj = { element: obs, x, y, radius: 25 };
+            obstacles.push(obstacleObj);
+            
+            setTimeout(() => {
+                // 淡出並移除
+                obs.style.transition = 'opacity 0.5s';
+                obs.style.opacity = '0';
+                setTimeout(() => {
+                    obs.remove();
+                    const idx = obstacles.indexOf(obstacleObj);
+                    if (idx > -1) obstacles.splice(idx, 1);
+                }, 500);
+            }, 5000);
+        }
+
+        function checkCollisions() {
+            const beeRadius = 25; 
+
+            // 檢查花朵
+            for (let i = flowers.length - 1; i >= 0; i--) {
+                const f = flowers[i];
+                const dx = beeX - f.x;
+                const dy = beeY - f.y;
+                if (Math.sqrt(dx*dx + dy*dy) < beeRadius + f.radius) {
+                    collectFlower(i);
+                }
+            }
+
+            // 檢查障礙物 (Lv3)
+            if (LEVEL_CONFIG[currentLevel].obstacles) {
+                for (let i = obstacles.length - 1; i >= 0; i--) {
+                    const o = obstacles[i];
+                    const dx = beeX - o.x;
+                    const dy = beeY - o.y;
+                    if (Math.sqrt(dx*dx + dy*dy) < beeRadius + o.radius) {
+                        hitObstacle(i);
+                    }
+                }
+            }
+        }
+
+        function collectFlower(index) {
+            const f = flowers[index];
+            
+            // 增加分數
+            score++;
+            updateUI();
+            
+            // 特效
+            createParticles(f.x, f.y);
+            f.element.style.transform = 'scale(0)';
+            
+            flowers.splice(index, 1);
+            setTimeout(() => f.element.remove(), 300);
+
+            // 檢查是否過關
+            if (score >= LEVEL_CONFIG[currentLevel].target) {
+                completeLevel();
+            }
+        }
+
+        function hitObstacle(index) {
+            const o = obstacles[index];
+            
+            // 彈開效果 (簡單的反向位移)
+            const dx = beeX - o.x;
+            const dy = beeY - o.y;
+            // 讓蜜蜂稍微往反方向彈
+            beeX += dx * 0.5;
+            beeY += dy * 0.5;
+
+            // 扣分 (如果還有分)
+            if (score > 0) {
+                score--;
+                updateUI();
+                
+                // 扣分特效文字
+                const floatText = document.createElement('div');
+                floatText.className = 'minus-score';
+                floatText.textContent = "-1";
+                floatText.style.left = `${o.x}px`;
+                floatText.style.top = `${o.y - 30}px`;
+                gameArea.appendChild(floatText);
+                setTimeout(() => floatText.remove(), 1000);
+            }
+
+            // 移除障礙物
+            o.element.style.transform = 'scale(0)';
+            obstacles.splice(index, 1);
+            setTimeout(() => o.element.remove(), 300);
+            
+            // 蜜蜂閃爍受傷
+            bee.querySelector('.bee-body').style.backgroundColor = '#FF5252';
+            setTimeout(() => {
+                bee.querySelector('.bee-body').style.backgroundColor = '#FFD700';
+            }, 300);
+        }
+
+        function createParticles(x, y) {
+            for (let i = 0; i < 6; i++) {
+                const p = document.createElement('div');
+                p.className = 'particle';
+                p.style.left = `${x}px`;
+                p.style.top = `${y}px`;
+                const angle = Math.random() * 6.28;
+                const v = 20 + Math.random() * 30;
+                p.style.transform = `translate(${Math.cos(angle)*v}px, ${Math.sin(angle)*v}px)`;
+                gameArea.appendChild(p);
+                setTimeout(() => p.remove(), 1000);
+            }
+        }
+
+        // --- 流程控制 ---
+
+        function updateUI() {
+            scoreEl.textContent = score;
+            targetEl.textContent = LEVEL_CONFIG[currentLevel].target;
+            levelDisplay.textContent = currentLevel;
+        }
+
+        function showModal(type) {
+            modalScreen.classList.remove('hidden');
+            let content = '';
+            
+            if (type === 'START') {
+                content = `
+                    <div class="text-6xl mb-4">🐝</div>
+                    <h1 class="text-3xl font-bold text-gray-700 mb-2">授粉大冒險</h1>
+                    <p class="text-gray-600 mb-6 font-bold whitespace-pre-line">${LEVEL_CONFIG[1].text}</p>
+                    <button onclick="startGame(1)" class="clay-btn px-8 py-3 text-xl font-bold">開始第一關 ▶</button>
+                `;
+            } else if (type === 'LEVEL_DONE') {
+                const nextLv = currentLevel + 1;
+                content = `
+                    <div class="text-6xl mb-4">🌸</div>
+                    <h2 class="text-3xl font-bold text-green-600 mb-2">過關了！</h2>
+                    <p class="text-gray-600 mb-6 font-bold whitespace-pre-line">${LEVEL_CONFIG[nextLv].text}</p>
+                    <button onclick="startGame(${nextLv})" class="clay-btn px-8 py-3 text-xl font-bold">挑戰下一關 ▶</button>
+                `;
+            } else if (type === 'WIN') {
+                content = `
+                    <div class="flex justify-center gap-4 text-6xl mb-6">
+                        <div class="animate-bounce">🍎</div>
+                        <div class="animate-bounce" style="animation-delay:0.1s">🍓</div>
+                        <div class="animate-bounce" style="animation-delay:0.2s">🍇</div>
+                    </div>
+                    <h2 class="text-3xl font-bold text-pink-600 mb-2">太棒了！</h2>
+                    <p class="text-gray-700 mb-6 text-lg font-bold">所有關卡完成！<br>森林裡長滿了水果！</p>
+                    <button onclick="location.reload()" class="clay-btn px-8 py-3 text-xl font-bold">重新再玩 ↺</button>
+                `;
+            }
+            
+            modalContent.innerHTML = content;
+        }
+
+        function startGame(level) {
+            currentLevel = level;
+            score = 0;
+            flowers = [];
+            obstacles = [];
+            gameArea.innerHTML = ''; // 清空畫面
+            
+            updateUI();
+            modalScreen.classList.add('hidden');
+            gameState = 'PLAYING';
+            
+            // 初始生成
+            spawnFlower(0);
+            spawnFlower(0);
+        }
+
+        function completeLevel() {
+            gameState = 'LEVEL_DONE';
+            if (currentLevel < 3) {
+                showModal('LEVEL_DONE');
+            } else {
+                showModal('WIN');
+            }
+        }
+
+        // 窗口調整
+        window.addEventListener('resize', () => {
+            if (gameState === 'PLAYING') {
+                flowers = [];
+                obstacles = [];
+                gameArea.innerHTML = '';
+            }
+        });
+
+    </script>
+</body>
+</html>
